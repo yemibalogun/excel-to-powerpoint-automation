@@ -1,3 +1,4 @@
+import openai
 import openpyxl
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -6,6 +7,15 @@ from pptx.enum.chart import XL_CHART_TYPE
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 from sklearn.feature_extraction.text import CountVectorizer
+import os
+from dotenv import load_dotenv
+
+# Load the .env file
+load_dotenv()
+
+
+# Get the API key from the environment variables
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Download necessary NLTK resources
 nltk.download('vader_lexicon')
@@ -55,7 +65,29 @@ def generate_observations(notes):
     summary += f"- Neutral Notes: {len(neutral_notes)}\n"
     summary += f"- Key Topics: {', '.join(keywords)}\n"
     
-    return summary
+    # GPT-powered detailed analysis
+    detailed_analysis = generate_gpt_analysis(notes)
+
+    return summary + "\n\nDetailed Analysis:\n" + detailed_analysis
+
+    
+def generate_gpt_analysis(notes):
+    # Prepare the notes into a string format for GPT
+    notes_text = "\n".join([str(note) for note in notes if isinstance(note, str)])
+    
+    # Call GPT to generate a detailed summary of observations
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",  # or use 'gpt-4' for more advanced analysis
+        
+        messages=[
+            {
+                "role": "user", 
+                "content": f"Analyze the following financial notes and provide a detailed summary, key insights, and possible financial recommendations:\n\n{notes_text}\n",
+            }
+        ], 
+    )
+    
+    return response.choices[0].message.content.strip()
 
 def excel_to_powerpoint(excel_file, ppt_template=None):
     # Load the Excel file
@@ -127,9 +159,9 @@ def excel_to_powerpoint(excel_file, ppt_template=None):
     add_text_slide("AI-Generated Observations", observations)
     
     # Save the presentation
-    ppt_file = excel_file.replace('.xlsx', '_analysis.pptx')
+    ppt_file = excel_file.replace('.xlsx', '_gpt_analysis.pptx')
     prs.save(ppt_file)
     print(f"PowerPoint presentation saved as {ppt_file}")
 
 # Usage
-excel_to_powerpoint('weekly_financial_report.xlsx')
+excel_to_powerpoint('expense_data_1.xlsx')
